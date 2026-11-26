@@ -39,7 +39,7 @@ python3 -m venv .venv
 
 首次连接未知设备时，从可信来源核对工具显示的 SHA-256 主机密钥指纹，通过后输入 `yes`。工具把确认的密钥保存在用户目录的 `.flash_arm_app/known_hosts/` 下，后续优先核对此记录。
 
-升级使用 SSH 和 SFTP。登录账号需要能在 `/usr/bin` 暂存和替换文件、在 `/run/lock` 取得 `flock` 锁，以及通过 `systemctl` 管理 `hawaii_app`。如果程序替换或启动失败，工具会尝试恢复原程序和服务，并输出恢复结果。请提供适用于设备的 `hawaii_ii` 可执行文件。
+升级使用 SSH 和 SFTP。登录账号需要能在 `/usr/bin` 暂存和安装文件、在 `/run/lock` 取得 `flock` 锁，以及通过 `systemctl` 管理 `hawaii_app`。目标 `/usr/bin/hawaii_ii` 不存在时，工具跳过备份并安装新程序。如果首次安装后服务启动失败，保留新程序以便排查。已有程序时，工具先备份，替换或启动失败后尝试恢复旧程序和服务。请提供适用于设备的 `hawaii_ii` 可执行文件。
 
 ## 打包 Windows EXE
 

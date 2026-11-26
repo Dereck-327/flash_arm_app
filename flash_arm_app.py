@@ -61,12 +61,20 @@ rollback() {
 trap cleanup EXIT
 exec 9>/run/lock/hawaii_ii-upgrade.lock
 flock -n 9 || fail "Could not acquire the upgrade lock. Check flock or wait for the other upgrade to finish."
-[ -f "$target" ] && [ ! -L "$target" ] ||
-    fail "Could not back up the previous executable. The target must be a regular file."
-cp -p "$target" "$backup" || fail "Could not back up the previous executable."
+# 悬空符号链接也占用目标路径，仅在路径不存在时跳过备份。
+if [ -e "$target" ] || [ -L "$target" ]; then
+    [ -f "$target" ] && [ ! -L "$target" ] ||
+        fail "Could not back up the previous executable. The target must be a regular file."
+    cp -p "$target" "$backup" || fail "Could not back up the previous executable."
+else
+    echo "No previous executable found. Installing without a backup."
+fi
 chmod 0755 "$incoming" || fail "Could not make the new file executable."
 systemctl stop hawaii_app || fail "Could not stop hawaii_app."
 if ! mv -fT "$incoming" "$target"; then
+    if [ ! -f "$backup" ]; then
+        fail "Could not install hawaii_ii. No previous executable is available to restore."
+    fi
     echo "Could not replace hawaii_ii." >&2
     # 如果旧程序仍在原位，直接重启，避免再次尝试可能被拒绝的替换。
     if [ -f "$target" ] && [ ! -L "$target" ] && cmp -s "$backup" "$target"; then
@@ -78,6 +86,9 @@ if ! mv -fT "$incoming" "$target"; then
 fi
 if ! { systemctl start hawaii_app && systemctl is-active --quiet hawaii_app; }; then
     echo "Could not start hawaii_app with the new executable." >&2
+    if [ ! -f "$backup" ]; then
+        fail "The new executable remains at $target. No previous executable is available to restore."
+    fi
     systemctl stop hawaii_app || echo "Could not stop hawaii_app before rollback." >&2
     rollback
 fi
